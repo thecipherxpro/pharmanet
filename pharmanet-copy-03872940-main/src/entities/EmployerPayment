@@ -1,0 +1,98 @@
+{
+  "name": "EmployerPayment",
+  "type": "object",
+  "properties": {
+    "employer_id": {
+      "type": "string",
+      "description": "ID of the employer"
+    },
+    "pharmacist_id": {
+      "type": "string",
+      "description": "ID of the pharmacist (if applicable)"
+    },
+    "shift_id": {
+      "type": "string",
+      "description": "ID of the shift (if applicable)"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount charged in CAD"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "acceptance_fee",
+        "subscription",
+        "other"
+      ],
+      "description": "Type of payment"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "charged",
+        "failed",
+        "refunded",
+        "pending"
+      ],
+      "default": "charged",
+      "description": "Payment status"
+    },
+    "stripe_payment_id": {
+      "type": "string",
+      "description": "Stripe payment reference"
+    },
+    "description": {
+      "type": "string",
+      "description": "Payment description"
+    },
+    "pharmacist_name": {
+      "type": "string",
+      "description": "Name of pharmacist for display"
+    },
+    "shift_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the shift"
+    },
+    "pharmacy_name": {
+      "type": "string",
+      "description": "Name of pharmacy"
+    }
+  },
+  "required": [
+    "employer_id",
+    "amount",
+    "type",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "employer_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

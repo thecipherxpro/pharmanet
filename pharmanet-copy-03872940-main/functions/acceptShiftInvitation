@@ -1,0 +1,146 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    
+    // Verify user is authenticated
+    const user = await base44.auth.me();
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Only pharmacists can accept invitations
+    if (user.user_type !== 'pharmacist') {
+      return Response.json({ 
+        error: 'Only pharmacists can accept invitations' 
+      }, { status: 403 });
+    }
+
+    const { invitationId } = await req.json();
+
+    if (!invitationId) {
+      return Response.json({ 
+        error: 'Missing invitationId' 
+      }, { status: 400 });
+    }
+
+    // Get the invitation (as user to verify access)
+    const invitations = await base44.entities.ShiftInvitation.filter({ 
+      id: invitationId 
+    });
+
+    if (invitations.length === 0) {
+      return Response.json({ 
+        error: 'Invitation not found' 
+      }, { status: 404 });
+    }
+
+    const invitation = invitations[0];
+
+    // Verify invitation belongs to current pharmacist
+    if (invitation.pharmacist_email !== user.email && invitation.pharmacist_id !== user.id) {
+      return Response.json({ 
+        error: 'This invitation is not for you' 
+      }, { status: 403 });
+    }
+
+    // Check if invitation is still pending
+    if (invitation.status !== 'pending') {
+      return Response.json({ 
+        error: `Invitation already ${invitation.status}` 
+      }, { status: 400 });
+    }
+
+    // Get the shift (as service role to check status)
+    const shifts = await base44.asServiceRole.entities.Shift.filter({ 
+      id: invitation.shift_id 
+    });
+
+    if (shifts.length === 0) {
+      return Response.json({ 
+        error: 'Shift not found or no longer available' 
+      }, { status: 404 });
+    }
+
+    const shift = shifts[0];
+
+    // Validate shift is still open
+    if (shift.status !== 'open') {
+      return Response.json({ 
+        error: `Shift is already ${shift.status}` 
+      }, { status: 400 });
+    }
+
+    // Validate shift is not already assigned
+    if (shift.assigned_to && shift.assigned_to !== '') {
+      return Response.json({ 
+        error: 'Shift is already assigned to another pharmacist' 
+      }, { status: 400 });
+    }
+
+    // Use service role to update both entities
+    // 1. Update invitation status
+    await base44.asServiceRole.entities.ShiftInvitation.update(invitationId, {
+      status: 'accepted',
+      responded_at: new Date().toISOString()
+    });
+
+    // 2. Update shift status and assign to pharmacist
+    await base44.asServiceRole.entities.Shift.update(shift.id, {
+      status: 'filled',
+      assigned_to: user.email
+    });
+
+    // 3. Expire/decline other pending invitations for the same shift
+    const otherInvitations = await base44.asServiceRole.entities.ShiftInvitation.filter({
+      shift_id: shift.id,
+      status: 'pending'
+    });
+
+    for (const otherInv of otherInvitations) {
+      if (otherInv.id !== invitationId) {
+        await base44.asServiceRole.entities.ShiftInvitation.update(otherInv.id, {
+          status: 'expired',
+          responded_at: new Date().toISOString()
+        });
+      }
+    }
+
+    // 4. Send notification to employer (optional)
+    try {
+      await base44.functions.invoke('sendShiftNotification', {
+        notification_type: 'invitation_accepted',
+        shift_data: {
+          shift_date: shift.shift_date,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          pharmacy_name: shift.pharmacy_name,
+          pharmacist_name: user.full_name
+        },
+        recipient_email: shift.created_by
+      });
+    } catch (error) {
+      console.error('Failed to send acceptance notification:', error);
+      // Don't fail the whole operation if email fails
+    }
+
+    return Response.json({
+      success: true,
+      message: 'Invitation accepted successfully',
+      shift: {
+        id: shift.id,
+        pharmacy_name: shift.pharmacy_name,
+        shift_date: shift.shift_date,
+        start_time: shift.start_time,
+        end_time: shift.end_time
+      }
+    });
+
+  } catch (error) {
+    console.error('Error accepting invitation:', error);
+    return Response.json({ 
+      error: error.message || 'Failed to accept invitation' 
+    }, { status: 500 });
+  }
+});

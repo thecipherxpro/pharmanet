@@ -1,0 +1,48 @@
+{
+  "name": "WalletCard",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "User ID (pharmacist only)"
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "description": "Stripe Customer ID"
+    },
+    "stripe_payment_method_id": {
+      "type": "string",
+      "description": "Stripe Payment Method ID"
+    },
+    "brand": {
+      "type": "string",
+      "description": "Card brand (Visa, Mastercard, etc.)"
+    },
+    "last4": {
+      "type": "string",
+      "description": "Last 4 digits of card"
+    },
+    "exp_month": {
+      "type": "number",
+      "description": "Expiration month"
+    },
+    "exp_year": {
+      "type": "number",
+      "description": "Expiration year"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "Is this the default card"
+    }
+  },
+  "required": [
+    "user_id",
+    "stripe_customer_id",
+    "stripe_payment_method_id",
+    "brand",
+    "last4",
+    "exp_month",
+    "exp_year"
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "name": "SecurityLog",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "login",
+        "logout",
+        "failed_login",
+        "data_access",
+        "data_modification",
+        "permission_denied",
+        "suspicious_activity",
+        "admin_action"
+      ],
+      "description": "Type of security event"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "ID of user performing action"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of user"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "IP address of request"
+    },
+    "user_agent": {
+      "type": "string",
+      "description": "Browser/device info"
+    },
+    "resource_type": {
+      "type": "string",
+      "description": "Type of resource accessed"
+    },
+    "resource_id": {
+      "type": "string",
+      "description": "ID of resource accessed"
+    },
+    "action": {
+      "type": "string",
+      "description": "Action performed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failure",
+        "blocked"
+      ],
+      "description": "Result of action"
+    },
+    "details": {
+      "type": "string",
+      "description": "Additional details about the event"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "description": "Severity level"
+    }
+  },
+  "required": [
+    "event_type",
+    "user_id",
+    "status"
+  ]
+}

@@ -1,0 +1,125 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+Deno.serve(async (req) => {
+    try {
+        const base44 = createClientFromRequest(req);
+        
+        // Verify user is authenticated
+        const user = await base44.auth.me();
+        if (!user) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Only pharmacists can access their invitations
+        if (user.user_type !== 'pharmacist') {
+            return Response.json({ 
+                error: 'Only pharmacists can view invitations' 
+            }, { status: 403 });
+        }
+
+        const { pharmacistEmail, status } = await req.json();
+
+        // Validate pharmacist email matches current user
+        const targetEmail = pharmacistEmail || user.email;
+        if (targetEmail !== user.email) {
+            return Response.json({ 
+                error: 'Cannot access invitations for another pharmacist' 
+            }, { status: 403 });
+        }
+
+        // Build filter for invitations
+        const filter = {
+            pharmacist_email: targetEmail
+        };
+
+        // Add status filter if provided
+        if (status) {
+            filter.status = status;
+        }
+
+        // Get all invitations for this pharmacist
+        const invitations = await base44.entities.ShiftInvitation.filter(filter, '-invited_at');
+
+        // Get all unique shift IDs from invitations
+        const shiftIds = [...new Set(invitations.map(inv => inv.shift_id))];
+
+        // Fetch all related shifts
+        const allShifts = await base44.entities.Shift.list();
+        const relatedShifts = allShifts.filter(shift => shiftIds.includes(shift.id));
+
+        // Combine invitations with their shift data
+        const invitationsWithShifts = invitations.map(invitation => {
+            const shift = relatedShifts.find(s => s.id === invitation.shift_id);
+            
+            return {
+                invitation: {
+                    id: invitation.id,
+                    shift_id: invitation.shift_id,
+                    employer_id: invitation.employer_id,
+                    employer_name: invitation.employer_name,
+                    employer_email: invitation.employer_email,
+                    pharmacist_id: invitation.pharmacist_id,
+                    pharmacist_email: invitation.pharmacist_email,
+                    pharmacist_name: invitation.pharmacist_name,
+                    message: invitation.message,
+                    status: invitation.status,
+                    invited_at: invitation.invited_at,
+                    responded_at: invitation.responded_at,
+                    created_date: invitation.created_date
+                },
+                shift: shift ? {
+                    id: shift.id,
+                    pharmacy_id: shift.pharmacy_id,
+                    pharmacy_name: shift.pharmacy_name,
+                    pharmacy_address: shift.pharmacy_address,
+                    pharmacy_city: shift.pharmacy_city,
+                    pharmacy_province: shift.pharmacy_province,
+                    pharmacy_software: shift.pharmacy_software,
+                    title: shift.title,
+                    description: shift.description,
+                    shift_type: shift.shift_type,
+                    shift_date: shift.shift_date,
+                    start_time: shift.start_time,
+                    end_time: shift.end_time,
+                    hourly_rate: shift.hourly_rate,
+                    total_hours: shift.total_hours,
+                    total_pay: shift.total_pay,
+                    urgency_level: shift.urgency_level,
+                    status: shift.status,
+                    assigned_to: shift.assigned_to,
+                    created_by: shift.created_by
+                } : null
+            };
+        });
+
+        // Filter out invitations where shift no longer exists, was deleted, or already filled
+        const validInvitations = invitationsWithShifts.filter(item => {
+            if (!item.shift) return false;
+            // Don't show invitation if shift is already filled or completed
+            if (item.shift.status === 'filled' || item.shift.status === 'completed') return false;
+            return true;
+        });
+
+        // Calculate stats
+        const stats = {
+            total: validInvitations.length,
+            pending: validInvitations.filter(i => i.invitation.status === 'pending').length,
+            accepted: validInvitations.filter(i => i.invitation.status === 'accepted').length,
+            declined: validInvitations.filter(i => i.invitation.status === 'declined').length,
+            expired: validInvitations.filter(i => i.invitation.status === 'expired').length
+        };
+
+        return Response.json({
+            success: true,
+            invitations: validInvitations,
+            stats: stats,
+            count: validInvitations.length
+        });
+
+    } catch (error) {
+        console.error('Error fetching pharmacist invitations:', error);
+        return Response.json({ 
+            error: error.message || 'Failed to fetch invitations' 
+        }, { status: 500 });
+    }
+});

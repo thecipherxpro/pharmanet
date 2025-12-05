@@ -1,0 +1,77 @@
+{
+  "name": "DataAccessControl",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "User requesting access"
+    },
+    "resource_type": {
+      "type": "string",
+      "enum": [
+        "User",
+        "Shift",
+        "ShiftApplication",
+        "Pharmacy",
+        "WalletCard",
+        "PayrollPreference"
+      ],
+      "description": "Type of resource"
+    },
+    "resource_id": {
+      "type": "string",
+      "description": "ID of specific resource"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "read",
+        "create",
+        "update",
+        "delete"
+      ],
+      "description": "Action being performed"
+    },
+    "granted": {
+      "type": "boolean",
+      "description": "Whether access was granted"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for access decision"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When access was attempted"
+    }
+  },
+  "required": [
+    "user_id",
+    "resource_type",
+    "action",
+    "granted"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,110 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    
+    // Verify user is authenticated
+    const user = await base44.auth.me();
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Only pharmacists can decline invitations
+    if (user.user_type !== 'pharmacist') {
+      return Response.json({ 
+        error: 'Only pharmacists can decline invitations' 
+      }, { status: 403 });
+    }
+
+    const { invitationId } = await req.json();
+
+    if (!invitationId) {
+      return Response.json({ 
+        error: 'Missing invitationId' 
+      }, { status: 400 });
+    }
+
+    // Get the invitation (as user to verify access)
+    const invitations = await base44.entities.ShiftInvitation.filter({ 
+      id: invitationId 
+    });
+
+    if (invitations.length === 0) {
+      return Response.json({ 
+        error: 'Invitation not found' 
+      }, { status: 404 });
+    }
+
+    const invitation = invitations[0];
+
+    // Verify invitation belongs to current pharmacist
+    if (invitation.pharmacist_email !== user.email && invitation.pharmacist_id !== user.id) {
+      return Response.json({ 
+        error: 'This invitation is not for you' 
+      }, { status: 403 });
+    }
+
+    // Check if invitation is still pending
+    if (invitation.status !== 'pending') {
+      return Response.json({ 
+        error: `Invitation already ${invitation.status}` 
+      }, { status: 400 });
+    }
+
+    // Use service role to update invitation
+    await base44.asServiceRole.entities.ShiftInvitation.update(invitationId, {
+      status: 'declined',
+      responded_at: new Date().toISOString()
+    });
+
+    // Get shift details for notification
+    const shifts = await base44.asServiceRole.entities.Shift.filter({ 
+      id: invitation.shift_id 
+    });
+
+    // Send notification to employer (optional)
+    if (shifts.length > 0) {
+      const shift = shifts[0];
+      
+      // Get primary date from schedule array
+      const getScheduleFromShift = (shiftData) => {
+        if (shiftData.schedule && Array.isArray(shiftData.schedule) && shiftData.schedule.length > 0) {
+          return shiftData.schedule;
+        }
+        if (shiftData.shift_date) {
+          return [{ date: shiftData.shift_date, start_time: shiftData.start_time, end_time: shiftData.end_time }];
+        }
+        return [];
+      };
+      const schedule = getScheduleFromShift(shift);
+      const primaryDate = schedule[0]?.date || 'N/A';
+      
+      try {
+        await base44.functions.invoke('sendShiftNotification', {
+          notification_type: 'invitation_declined',
+          shift_data: {
+            shift_date: primaryDate,
+            pharmacy_name: shift.pharmacy_name,
+            pharmacist_name: user.full_name
+          },
+          recipient_email: shift.created_by
+        });
+      } catch (error) {
+        console.error('Failed to send decline notification:', error);
+        // Don't fail the whole operation if email fails
+      }
+    }
+
+    return Response.json({
+      success: true,
+      message: 'Invitation declined successfully'
+    });
+
+  } catch (error) {
+    console.error('Error declining invitation:', error);
+    return Response.json({ 
+      error: error.message || 'Failed to decline invitation' 
+    }, { status: 500 });
+  }
+});

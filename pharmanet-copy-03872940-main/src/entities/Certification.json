@@ -1,0 +1,64 @@
+{
+  "name": "Certification",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the pharmacist"
+    },
+    "certification_name": {
+      "type": "string",
+      "description": "Name of the certification"
+    },
+    "certification_type": {
+      "type": "string",
+      "enum": [
+        "Professional License",
+        "Specialty Certification",
+        "Training Certificate",
+        "Continuing Education",
+        "Other"
+      ],
+      "description": "Type of certification"
+    },
+    "issuing_organization": {
+      "type": "string",
+      "description": "Organization that issued the certification"
+    },
+    "issue_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date certification was issued"
+    },
+    "expiry_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date certification expires (if applicable)"
+    },
+    "document_url": {
+      "type": "string",
+      "description": "URL to uploaded certification document"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "verified",
+        "expired",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Verification status"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the certification"
+    }
+  },
+  "required": [
+    "user_id",
+    "certification_name",
+    "certification_type",
+    "issuing_organization"
+  ]
+}

@@ -1,0 +1,191 @@
+
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+/**
+ * Automatically updates shift statuses based on time logic:
+ * 1. Cancels unfilled expired shifts
+ * 2. Marks filled past shifts as completed
+ * 
+ * Should be called via scheduled cron job every hour
+ */
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+
+    const now = new Date();
+    console.log(`[autoUpdateShiftStatus] Running at: ${now.toISOString()}`);
+
+    // Get all active shifts (open or filled)
+    const activeShifts = await base44.asServiceRole.entities.Shift.filter({
+      status: { $in: ['open', 'filled'] }
+    });
+
+    let closedCount = 0;
+    let completedCount = 0;
+    const errors = [];
+
+    for (const shift of activeShifts) {
+      try {
+        // Parse shift date and end time
+        const shiftDate = new Date(shift.shift_date);
+        const [endHours, endMinutes] = shift.end_time.split(':').map(Number);
+        
+        // Create datetime for shift end
+        const shiftEndDateTime = new Date(shiftDate);
+        shiftEndDateTime.setHours(endHours, endMinutes, 0, 0);
+
+        // Logic #1: Close unfilled expired shifts (changed from cancel to close)
+        if (shift.status === 'open' && shiftEndDateTime < now) {
+          await base44.asServiceRole.entities.Shift.update(shift.id, {
+            status: 'closed',
+            cancelled_reason: 'Unfilled before end time',
+            closed_at: now.toISOString()
+          });
+          closedCount++;
+
+          // Notify employer
+          try {
+            const employers = await base44.asServiceRole.entities.User.filter({
+              email: shift.created_by
+            });
+
+            if (employers.length > 0) {
+              const employer = employers[0];
+              
+              await base44.integrations.Core.SendEmail({
+                from_name: 'Pharmanet',
+                to: employer.email,
+                subject: `Shift Closed - ${shift.pharmacy_name}`,
+                body: `
+Hello ${employer.full_name || employer.company_name},
+
+Your shift was automatically closed because it was not filled before the scheduled time.
+
+Shift Details:
+- Pharmacy: ${shift.pharmacy_name}
+- Date: ${shift.shift_date}
+- Time: ${shift.start_time} - ${shift.end_time}
+
+You can repost this shift with a new date/time from your dashboard.
+
+View Shifts: https://tatchealth.ca/my-shifts
+
+Best regards,
+Pharmanet Team
+                `.trim()
+              });
+            }
+          } catch (emailError) {
+            console.error(`Failed to send close notification email for shift ${shift.id}:`, emailError);
+          }
+        }
+
+        // Logic #2: Mark filled shifts as completed
+        if (shift.status === 'filled' && shiftEndDateTime < now) {
+          await base44.asServiceRole.entities.Shift.update(shift.id, {
+            status: 'completed',
+            completed_at: now.toISOString()
+          });
+          completedCount++;
+
+          // Send completion notifications
+          try {
+            // Notify employer
+            const employers = await base44.asServiceRole.entities.User.filter({
+              email: shift.created_by
+            });
+
+            if (employers.length > 0) {
+              const employer = employers[0];
+              
+              await base44.integrations.Core.SendEmail({
+                from_name: 'Pharmanet',
+                to: employer.email,
+                subject: `✓ Shift Completed - ${shift.pharmacy_name}`,
+                body: `
+Hello ${employer.full_name || employer.company_name},
+
+Your shift has been marked as completed:
+
+Shift Details:
+- Pharmacy: ${shift.pharmacy_name}
+- Date: ${shift.shift_date}
+- Time: ${shift.start_time} - ${shift.end_time}
+- Pharmacist: ${shift.assigned_to}
+
+You can now review the pharmacist and manage payroll.
+
+View Completed Shift: https://tatchealth.ca
+
+Best regards,
+Pharmanet Team
+                `.trim()
+              });
+            }
+
+            // Notify pharmacist
+            if (shift.assigned_to) {
+              const pharmacists = await base44.asServiceRole.entities.User.filter({
+                email: shift.assigned_to
+              });
+
+              if (pharmacists.length > 0) {
+                const pharmacist = pharmacists[0];
+
+                await base44.integrations.Core.SendEmail({
+                  from_name: 'Pharmanet',
+                  to: pharmacist.email,
+                  subject: `✓ Shift Completed - ${shift.pharmacy_name}`,
+                  body: `
+Hello ${pharmacist.full_name},
+
+Your shift has been marked as completed:
+
+Shift Details:
+- Pharmacy: ${shift.pharmacy_name}
+- Date: ${shift.shift_date}
+- Time: ${shift.start_time} - ${shift.end_time}
+- Total Pay: $${shift.total_pay}
+
+Your payment will be processed shortly. You can view your receipt in your schedule.
+
+View Receipt: https://tatchealth.ca
+
+Best regards,
+Pharmanet Team
+                  `.trim()
+                });
+              }
+            }
+          } catch (emailError) {
+            console.error(`Failed to send completion emails for shift ${shift.id}:`, emailError);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing shift ${shift.id}:`, error);
+        errors.push({ shiftId: shift.id, error: error.message });
+      }
+    }
+
+    const summary = {
+      success: true,
+      timestamp: now.toISOString(),
+      totalChecked: activeShifts.length,
+      closedCount,
+      completedCount,
+      errors: errors.length > 0 ? errors : undefined
+    };
+
+    console.log('[autoUpdateShiftStatus] Summary:', summary);
+
+    return Response.json(summary);
+
+  } catch (error) {
+    console.error('[autoUpdateShiftStatus] Fatal error:', error);
+    return Response.json({ 
+      error: 'Failed to update shift statuses',
+      details: error.message 
+    }, { status: 500 });
+  }
+});

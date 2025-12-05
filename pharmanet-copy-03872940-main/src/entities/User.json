@@ -1,0 +1,230 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "user_type": {
+      "type": "string",
+      "enum": [
+        "employer",
+        "pharmacist",
+        "admin"
+      ],
+      "description": "User portal type"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "URL to user's profile picture"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Company name (for employers)"
+    },
+    "company_description": {
+      "type": "string",
+      "description": "Brief company description"
+    },
+    "business_address": {
+      "type": "string",
+      "description": "Business address (for employers)"
+    },
+    "business_registration": {
+      "type": "string",
+      "description": "Business registration number"
+    },
+    "tax_id": {
+      "type": "string",
+      "description": "Tax ID / HST number"
+    },
+    "billing_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Billing email address"
+    },
+    "payment_method": {
+      "type": "string",
+      "description": "Preferred payment method"
+    },
+    "license_number": {
+      "type": "string",
+      "description": "Ontario Pharmacist license number"
+    },
+    "license_document_url": {
+      "type": "string",
+      "description": "URL to uploaded license document"
+    },
+    "license_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether license has been verified"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "phone_private": {
+      "type": "boolean",
+      "default": false,
+      "description": "Hide contact info until booked"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "province": {
+      "type": "string",
+      "enum": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "QC",
+        "SK",
+        "YT"
+      ]
+    },
+    "postal_code": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string",
+      "description": "Professional bio"
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Languages spoken"
+    },
+    "rating": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 5
+    },
+    "completed_shifts": {
+      "type": "number",
+      "default": 0
+    },
+    "years_experience": {
+      "type": "number",
+      "description": "Years of pharmacy experience"
+    },
+    "shift_preference": {
+      "type": "string",
+      "enum": [
+        "temporary",
+        "permanent",
+        "shift_relief",
+        "urgent"
+      ],
+      "description": "Preferred shift type"
+    },
+    "software_experience": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Kroll",
+          "Paperless Kroll",
+          "Fillware",
+          "PharmaClik",
+          "Nexxsys",
+          "Commander",
+          "Assyst",
+          "PrimeRx",
+          "McKesson",
+          "Other"
+        ]
+      },
+      "description": "Pharmacy software experience"
+    },
+    "preferred_regions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Preferred work regions in GTA"
+    },
+    "commute_mode": {
+      "type": "string",
+      "enum": [
+        "car",
+        "transit",
+        "other"
+      ],
+      "description": "Preferred commute method"
+    },
+    "pharmaceutical_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Specialized pharmaceutical skills"
+    },
+    "is_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Profile verification status"
+    },
+    "email_notifications": {
+      "type": "boolean",
+      "default": true
+    },
+    "sms_notifications": {
+      "type": "boolean",
+      "default": false
+    },
+    "new_application_alert": {
+      "type": "boolean",
+      "default": true
+    },
+    "shift_filled_alert": {
+      "type": "boolean",
+      "default": true
+    },
+    "weekly_report": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_company_in_directory": {
+      "type": "boolean",
+      "default": true
+    },
+    "allow_pharmacist_contact": {
+      "type": "boolean",
+      "default": true
+    },
+    "default_shift_duration": {
+      "type": "number",
+      "default": 8
+    },
+    "auto_approve_qualified": {
+      "type": "boolean",
+      "default": false
+    },
+    "require_references": {
+      "type": "boolean",
+      "default": false
+    },
+    "dark_mode": {
+      "type": "boolean",
+      "default": false
+    },
+    "language": {
+      "type": "string",
+      "default": "en"
+    },
+    "timezone": {
+      "type": "string",
+      "default": "America/Toronto"
+    }
+  },
+  "required": []
+}

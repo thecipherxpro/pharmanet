@@ -1,0 +1,38 @@
+{
+  "name": "AvailabilitySchedule",
+  "type": "object",
+  "properties": {
+    "pharmacist_email": {
+      "type": "string",
+      "description": "Email of the pharmacist"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Availability date"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "Start time (HH:MM format)"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "End time (HH:MM format)"
+    },
+    "available": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether available on this date/time"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes about availability"
+    }
+  },
+  "required": [
+    "pharmacist_email",
+    "date",
+    "start_time",
+    "end_time"
+  ]
+}

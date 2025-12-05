@@ -1,0 +1,332 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+Deno.serve(async (req) => {
+    try {
+        const base44 = createClientFromRequest(req);
+        
+        // Verify user is authenticated
+        const user = await base44.auth.me();
+        if (!user) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { user_type } = await req.json();
+
+        // Get user details
+        const userName = user.full_name || 'there';
+        const userEmail = user.email;
+        const userType = user_type || user.user_type || 'pharmacist';
+
+        // Create personalized welcome email based on user type
+        const emailSubject = userType === 'employer' 
+            ? 'Welcome to Pharmanet - Your Pharmacy Staffing Solution'
+            : 'Welcome to Pharmanet - Start Finding Shifts Today';
+
+        const emailBody = createWelcomeEmailTemplate(userName, userType);
+
+        // Send welcome email using Base44 email integration
+        await base44.integrations.Core.SendEmail({
+            from_name: 'Pharmanet Team',
+            to: userEmail,
+            subject: emailSubject,
+            body: emailBody
+        });
+
+        return Response.json({ 
+            success: true, 
+            message: 'Welcome email sent successfully' 
+        });
+
+    } catch (error) {
+        console.error('Error sending welcome email:', error);
+        return Response.json({ 
+            error: error.message || 'Failed to send welcome email' 
+        }, { status: 500 });
+    }
+});
+
+function createWelcomeEmailTemplate(userName, userType) {
+    const isEmployer = userType === 'employer';
+    const appUrl = 'https://your-pharmanet-app.com'; // Replace with actual domain
+    
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Welcome to Pharmanet</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+    </style>
+    <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <!-- Wrapper -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5; padding: 20px 0;">
+        <tr>
+            <td align="center">
+                <!-- Main Container - Mobile Friendly Width -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #1e40af; padding: 32px 20px; text-align: center;">
+                            <!-- Logo -->
+                            <div style="background-color: #ffffff; width: 56px; height: 56px; border-radius: 12px; margin: 0 auto 16px; display: inline-flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 28px; font-weight: 700; color: #1e40af;">Rx</span>
+                            </div>
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; line-height: 1.3;">
+                                Welcome to Pharmanet
+                            </h1>
+                            <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; line-height: 1.4;">
+                                ${isEmployer ? 'Pharmacy Staffing Made Simple' : 'Your Pharmacy Career Platform'}
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 32px 20px;">
+                            
+                            <!-- Greeting -->
+                            <h2 style="margin: 0 0 16px; color: #111827; font-size: 20px; font-weight: 600;">
+                                Hi ${userName},
+                            </h2>
+                            
+                            <p style="margin: 0 0 24px; color: #4b5563; font-size: 15px; line-height: 1.6;">
+                                ${isEmployer 
+                                    ? 'Thank you for joining Pharmanet. Your account has been successfully created, and you\'re ready to start posting shifts and connecting with qualified pharmacists.'
+                                    : 'Thank you for joining Pharmanet. Your account has been successfully created, and you\'re ready to start browsing shifts and growing your career.'
+                                }
+                            </p>
+
+                            <!-- Account Confirmation Box -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f0fdf4; border-left: 4px solid: #10b981; border-radius: 6px; margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 16px;">
+                                        <p style="margin: 0; color: #065f46; font-size: 14px; line-height: 1.5;">
+                                            <strong style="display: block; margin-bottom: 4px;">✓ Account Confirmed</strong>
+                                            Your ${isEmployer ? 'employer' : 'pharmacist'} account is now active and ready to use.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Getting Started Section -->
+                            <h3 style="margin: 0 0 16px; color: #111827; font-size: 18px; font-weight: 600;">
+                                Getting Started
+                            </h3>
+
+                            ${isEmployer ? `
+                            <!-- Employer Steps -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="32" valign="top">
+                                                    <div style="width: 24px; height: 24px; background-color: #1e40af; color: #ffffff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600;">1</div>
+                                                </td>
+                                                <td valign="top">
+                                                    <p style="margin: 0 0 4px; color: #111827; font-size: 14px; font-weight: 600;">Complete Your Profile</p>
+                                                    <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.4;">Add your company details and pharmacy information</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="32" valign="top">
+                                                    <div style="width: 24px; height: 24px; background-color: #1e40af; color: #ffffff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600;">2</div>
+                                                </td>
+                                                <td valign="top">
+                                                    <p style="margin: 0 0 4px; color: #111827; font-size: 14px; font-weight: 600;">Add Your Pharmacies</p>
+                                                    <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.4;">Register all pharmacy locations you manage</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 0;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="32" valign="top">
+                                                    <div style="width: 24px; height: 24px; background-color: #1e40af; color: #ffffff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600;">3</div>
+                                                </td>
+                                                <td valign="top">
+                                                    <p style="margin: 0 0 4px; color: #111827; font-size: 14px; font-weight: 600;">Post Your First Shift</p>
+                                                    <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.4;">Create a shift and start receiving applications</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            ` : `
+                            <!-- Pharmacist Steps -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="32" valign="top">
+                                                    <div style="width: 24px; height: 24px; background-color: #1e40af; color: #ffffff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600;">1</div>
+                                                </td>
+                                                <td valign="top">
+                                                    <p style="margin: 0 0 4px; color: #111827; font-size: 14px; font-weight: 600;">Complete Your Profile</p>
+                                                    <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.4;">Add your license, experience, and preferences</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="32" valign="top">
+                                                    <div style="width: 24px; height: 24px; background-color: #1e40af; color: #ffffff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600;">2</div>
+                                                </td>
+                                                <td valign="top">
+                                                    <p style="margin: 0 0 4px; color: #111827; font-size: 14px; font-weight: 600;">Browse Available Shifts</p>
+                                                    <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.4;">Find shifts that match your schedule and location</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 0;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td width="32" valign="top">
+                                                    <div style="width: 24px; height: 24px; background-color: #1e40af; color: #ffffff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600;">3</div>
+                                                </td>
+                                                <td valign="top">
+                                                    <p style="margin: 0 0 4px; color: #111827; font-size: 14px; font-weight: 600;">Apply & Get Hired</p>
+                                                    <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.4;">Submit applications and start working</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            `}
+
+                            <!-- Key Features -->
+                            <h3 style="margin: 0 0 16px; color: #111827; font-size: 18px; font-weight: 600;">
+                                ${isEmployer ? 'Platform Features' : 'Why Pharmacists Choose Us'}
+                            </h3>
+
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 32px;">
+                                ${isEmployer ? `
+                                <tr>
+                                    <td style="padding: 8px 0;">
+                                        <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.5;">
+                                            <strong style="color: #111827;">•</strong> Post multiple shifts up to 30 days in advance
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;">
+                                        <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.5;">
+                                            <strong style="color: #111827;">•</strong> Dynamic pricing based on shift urgency
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;">
+                                        <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.5;">
+                                            <strong style="color: #111827;">•</strong> Access to verified Ontario-licensed pharmacists
+                                        </p>
+                                    </td>
+                                </tr>
+                                ` : `
+                                <tr>
+                                    <td style="padding: 8px 0;">
+                                        <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.5;">
+                                            <strong style="color: #111827;">•</strong> Earn $50-$90/hr based on shift urgency
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;">
+                                        <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.5;">
+                                            <strong style="color: #111827;">•</strong> Flexible scheduling across the GTA
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;">
+                                        <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.5;">
+                                            <strong style="color: #111827;">•</strong> Easy calendar management and tracking
+                                        </p>
+                                    </td>
+                                </tr>
+                                `}
+                            </table>
+
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding: 0 0 24px 0;">
+                                        <a href="${appUrl}" style="display: inline-block; background-color: #1e40af; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 15px; font-weight: 600; text-align: center; min-width: 200px;">
+                                            ${isEmployer ? 'Go to Dashboard' : 'Browse Shifts'}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Support Box -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9fafb; border-radius: 6px; margin-top: 24px;">
+                                <tr>
+                                    <td style="padding: 16px;">
+                                        <p style="margin: 0 0 8px; color: #111827; font-size: 14px; font-weight: 600;">
+                                            Need Help?
+                                        </p>
+                                        <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.5;">
+                                            Our support team is available Monday-Friday, 9 AM - 6 PM ET<br>
+                                            Email: <a href="mailto:support@pharmanet.com" style="color: #1e40af; text-decoration: none;">support@pharmanet.com</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 24px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px; color: #111827; font-size: 14px; font-weight: 600;">
+                                Pharmanet
+                            </p>
+                            <p style="margin: 0 0 16px; color: #6b7280; font-size: 13px;">
+                                Connecting Pharmacies with Qualified Pharmacists
+                            </p>
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                                © 2024 Pharmanet. All rights reserved.
+                            </p>
+                            <p style="margin: 8px 0 0; color: #9ca3af; font-size: 12px;">
+                                <a href="${appUrl}/privacy" style="color: #6b7280; text-decoration: none; margin: 0 8px;">Privacy</a> |
+                                <a href="${appUrl}/terms" style="color: #6b7280; text-decoration: none; margin: 0 8px;">Terms</a> |
+                                <a href="${appUrl}/unsubscribe" style="color: #6b7280; text-decoration: none; margin: 0 8px;">Unsubscribe</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
+}

@@ -1,0 +1,89 @@
+{
+  "name": "WalletCard",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "User ID of the card owner (pharmacist only)"
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "description": "Stripe customer ID"
+    },
+    "stripe_payment_method_id": {
+      "type": "string",
+      "description": "Stripe payment method ID"
+    },
+    "brand": {
+      "type": "string",
+      "description": "Card brand (visa, mastercard, etc)"
+    },
+    "last4": {
+      "type": "string",
+      "description": "Last 4 digits of card"
+    },
+    "exp_month": {
+      "type": "integer",
+      "description": "Expiration month"
+    },
+    "exp_year": {
+      "type": "integer",
+      "description": "Expiration year"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this is the default card"
+    }
+  },
+  "required": [
+    "user_id",
+    "stripe_customer_id",
+    "stripe_payment_method_id",
+    "brand",
+    "last4",
+    "exp_month",
+    "exp_year"
+  ],
+  "rls": {
+    "create": {
+      "user_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

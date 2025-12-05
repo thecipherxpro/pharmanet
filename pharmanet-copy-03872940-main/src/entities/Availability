@@ -1,0 +1,79 @@
+{
+  "name": "Availability",
+  "type": "object",
+  "properties": {
+    "pharmacist_email": {
+      "type": "string",
+      "description": "Email of the pharmacist"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of availability"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "Start time (HH:MM format)"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "End time (HH:MM format)"
+    },
+    "is_available": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this time slot is available"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes about availability"
+    }
+  },
+  "required": [
+    "pharmacist_email",
+    "date",
+    "start_time",
+    "end_time"
+  ],
+  "rls": {
+    "create": {
+      "pharmacist_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "pharmacist_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "pharmacist_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "pharmacist_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

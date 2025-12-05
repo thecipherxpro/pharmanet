@@ -1,0 +1,90 @@
+{
+  "name": "ShiftApplication",
+  "type": "object",
+  "properties": {
+    "shift_id": {
+      "type": "string",
+      "description": "ID of the shift being applied to"
+    },
+    "pharmacist_email": {
+      "type": "string",
+      "description": "Email of applying pharmacist"
+    },
+    "pharmacist_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected",
+        "withdrawn"
+      ],
+      "default": "pending"
+    },
+    "cover_letter": {
+      "type": "string",
+      "description": "Optional message from pharmacist"
+    },
+    "applied_date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "shift_id",
+    "pharmacist_email"
+  ],
+  "rls": {
+    "create": {
+      "pharmacist_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "pharmacist_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "user_type": "employer"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "pharmacist_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "user_type": "employer"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "pharmacist_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "name": "PayrollPreference",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Pharmacist user ID (unique)"
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "Cheque",
+        "Direct Deposit",
+        "Bank E-Transfer"
+      ],
+      "description": "Payment method"
+    },
+    "legal_first_name": {
+      "type": "string",
+      "description": "Legal first name"
+    },
+    "legal_last_name": {
+      "type": "string",
+      "description": "Legal last name"
+    },
+    "bank_name": {
+      "type": "string",
+      "description": "Bank name"
+    },
+    "institution_number": {
+      "type": "string",
+      "description": "Institution number (Direct Deposit)"
+    },
+    "transit_number": {
+      "type": "string",
+      "description": "Transit number (Direct Deposit)"
+    },
+    "account_number": {
+      "type": "string",
+      "description": "Account number (Direct Deposit)"
+    },
+    "etransfer_email": {
+      "type": "string",
+      "description": "E-transfer email"
+    },
+    "auto_deposit_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Auto-deposit enabled for e-transfer"
+    },
+    "security_question": {
+      "type": "string",
+      "description": "Security question (if auto-deposit disabled)"
+    },
+    "security_answer": {
+      "type": "string",
+      "description": "Security answer (if auto-deposit disabled)"
+    }
+  },
+  "required": [
+    "user_id",
+    "method",
+    "legal_first_name",
+    "legal_last_name"
+  ]
+}

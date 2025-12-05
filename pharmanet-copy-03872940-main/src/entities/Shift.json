@@ -1,0 +1,147 @@
+{
+  "name": "Shift",
+  "type": "object",
+  "properties": {
+    "pharmacy_id": {
+      "type": "string",
+      "description": "ID of the pharmacy"
+    },
+    "pharmacy_name": {
+      "type": "string",
+      "description": "Name of the pharmacy"
+    },
+    "pharmacy_address": {
+      "type": "string"
+    },
+    "pharmacy_city": {
+      "type": "string"
+    },
+    "pharmacy_province": {
+      "type": "string"
+    },
+    "pharmacy_software": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Software used at pharmacy"
+    },
+    "title": {
+      "type": "string",
+      "description": "Shift title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Shift description"
+    },
+    "shift_type": {
+      "type": "string",
+      "enum": [
+        "temporary",
+        "permanent",
+        "shift_relief",
+        "urgent"
+      ],
+      "description": "Type of shift"
+    },
+    "shift_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the shift"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "Start time (HH:MM format)"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "End time (HH:MM format)"
+    },
+    "hourly_rate": {
+      "type": "number",
+      "description": "Calculated hourly rate in CAD"
+    },
+    "days_ahead": {
+      "type": "number",
+      "description": "Days from posting to shift date"
+    },
+    "urgency_level": {
+      "type": "string",
+      "enum": [
+        "emergency",
+        "very_urgent",
+        "urgent",
+        "short_notice",
+        "moderate",
+        "reasonable",
+        "planned"
+      ],
+      "description": "Urgency classification"
+    },
+    "total_hours": {
+      "type": "number"
+    },
+    "total_pay": {
+      "type": "number"
+    },
+    "shift_includes": {
+      "type": "object",
+      "properties": {
+        "assistant_on_site": {
+          "type": "boolean",
+          "default": false
+        },
+        "vaccination_injections": {
+          "type": "boolean",
+          "default": false
+        },
+        "addiction_dispensing": {
+          "type": "boolean",
+          "default": false
+        },
+        "methadone_suboxone": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "years_experience": {
+          "type": "number"
+        },
+        "software_experience": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "filled",
+        "completed",
+        "cancelled"
+      ],
+      "default": "open"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Email of pharmacist who got the shift"
+    }
+  },
+  "required": [
+    "pharmacy_id",
+    "pharmacy_name",
+    "title",
+    "shift_type",
+    "shift_date",
+    "start_time",
+    "end_time",
+    "hourly_rate"
+  ]
+}

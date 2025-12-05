@@ -1,0 +1,72 @@
+{
+  "name": "TaxConfig",
+  "type": "object",
+  "properties": {
+    "province": {
+      "type": "string",
+      "description": "Province code (e.g., ON)"
+    },
+    "tax_year": {
+      "type": "number",
+      "description": "Tax year"
+    },
+    "cpp_rate": {
+      "type": "number",
+      "description": "CPP contribution rate"
+    },
+    "cpp_max": {
+      "type": "number",
+      "description": "CPP maximum annual contribution"
+    },
+    "ei_rate": {
+      "type": "number",
+      "description": "EI premium rate"
+    },
+    "ei_max": {
+      "type": "number",
+      "description": "EI maximum annual premium"
+    },
+    "federal_brackets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "rate": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Federal tax brackets"
+    },
+    "ontario_brackets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "rate": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Ontario provincial tax brackets"
+    }
+  },
+  "required": [
+    "province",
+    "tax_year",
+    "cpp_rate",
+    "ei_rate"
+  ]
+}

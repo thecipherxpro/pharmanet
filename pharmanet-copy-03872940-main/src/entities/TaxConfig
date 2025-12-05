@@ -1,0 +1,98 @@
+{
+  "name": "TaxConfig",
+  "type": "object",
+  "properties": {
+    "province": {
+      "type": "string",
+      "description": "Province code (e.g., ON)"
+    },
+    "tax_year": {
+      "type": "integer",
+      "description": "Tax year"
+    },
+    "cpp_rate": {
+      "type": "number",
+      "description": "CPP contribution rate"
+    },
+    "cpp_max": {
+      "type": "number",
+      "description": "Maximum CPP contribution"
+    },
+    "ei_rate": {
+      "type": "number",
+      "description": "EI premium rate"
+    },
+    "ei_max": {
+      "type": "number",
+      "description": "Maximum EI premium"
+    },
+    "federal_brackets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "rate": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Federal tax brackets"
+    },
+    "ontario_brackets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "rate": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Ontario tax brackets"
+    }
+  },
+  "required": [
+    "province",
+    "tax_year",
+    "cpp_rate",
+    "cpp_max",
+    "ei_rate",
+    "ei_max",
+    "federal_brackets",
+    "ontario_brackets"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

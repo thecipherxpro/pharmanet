@@ -1,0 +1,103 @@
+{
+  "name": "ShiftCancellation",
+  "type": "object",
+  "properties": {
+    "shift_id": {
+      "type": "string",
+      "description": "ID of the cancelled shift"
+    },
+    "pharmacist_id": {
+      "type": "string",
+      "description": "ID of pharmacist who cancelled"
+    },
+    "employer_id": {
+      "type": "string",
+      "description": "ID of the employer"
+    },
+    "cancelled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When cancellation occurred"
+    },
+    "hours_before_start": {
+      "type": "number",
+      "description": "Hours between cancellation and shift start"
+    },
+    "penalty_total": {
+      "type": "number",
+      "description": "Total penalty charged to pharmacist"
+    },
+    "penalty_employer_share": {
+      "type": "number",
+      "description": "Portion credited to employer"
+    },
+    "penalty_app_share": {
+      "type": "number",
+      "description": "Portion retained by app"
+    },
+    "stripe_payment_id": {
+      "type": "string",
+      "description": "Stripe charge reference ID"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "charged",
+        "waived",
+        "failed",
+        "refunded"
+      ],
+      "default": "charged",
+      "description": "Payment status"
+    },
+    "shift_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the cancelled shift"
+    },
+    "pharmacy_name": {
+      "type": "string",
+      "description": "Name of pharmacy for display"
+    }
+  },
+  "required": [
+    "shift_id",
+    "pharmacist_id",
+    "employer_id",
+    "cancelled_at",
+    "penalty_total",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "pharmacist_id": "{{user.id}}"
+        },
+        {
+          "employer_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

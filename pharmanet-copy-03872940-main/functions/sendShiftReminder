@@ -1,0 +1,189 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+
+    // This function should be called via a scheduled cron job
+    // Get all shifts happening in the next 1-2 hours
+
+    const now = new Date();
+    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+    // Get today's date
+    const today = now.toISOString().split('T')[0];
+
+    // Get all filled shifts for today
+    const shifts = await base44.asServiceRole.entities.Shift.filter({
+      shift_date: today,
+      status: 'filled'
+    });
+
+    let remindersSent = 0;
+    const errors = [];
+
+    for (const shift of shifts) {
+      try {
+        // Parse shift start time
+        const [hours, minutes] = shift.start_time.split(':').map(Number);
+        const shiftDateTime = new Date(shift.shift_date);
+        shiftDateTime.setHours(hours, minutes, 0, 0);
+
+        // Check if shift starts in 1-2 hours
+        if (shiftDateTime >= oneHourFromNow && shiftDateTime <= twoHoursFromNow) {
+          // Get pharmacist email
+          const pharmacistEmail = shift.assigned_to;
+          
+          if (!pharmacistEmail) continue;
+
+          // Get pharmacist details
+          const users = await base44.asServiceRole.entities.User.filter({
+            email: pharmacistEmail
+          });
+
+          if (users.length === 0) continue;
+
+          const pharmacist = users[0];
+
+          // Check if pharmacist has email notifications enabled
+          if (pharmacist.email_notifications === false) continue;
+
+          // Format time in 12-hour format
+          const formatTime = (time) => {
+            const [h, m] = time.split(':').map(Number);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const hour12 = h % 12 || 12;
+            return `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
+          };
+
+          // Send reminder email
+          const emailBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px;">
+          
+          <tr>
+            <td style="background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%); padding: 24px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 600;">⏰ Shift Reminder</h1>
+              <p style="margin: 8px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Your shift starts soon</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 32px 20px;">
+              
+              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
+                <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">
+                  🚀 Your shift starts in approximately 1 hour
+                </p>
+              </div>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9fafb; border-radius: 6px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="margin: 0 0 12px; color: #111827; font-size: 14px; font-weight: 600;">Shift Details</p>
+                    
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 13px; width: 80px;">Pharmacy:</td>
+                        <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${shift.pharmacy_name}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Location:</td>
+                        <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${shift.pharmacy_city}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Time:</td>
+                        <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${formatTime(shift.start_time)} - ${formatTime(shift.end_time)}</td>
+                      </tr>
+                      ${shift.pharmacy_address ? `
+                      <tr>
+                        <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Address:</td>
+                        <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;">${shift.pharmacy_address}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #eff6ff; border-radius: 6px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="margin: 0 0 8px; color: #1e40af; font-size: 13px; font-weight: 600;">Preparation Checklist:</p>
+                    <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.6;">
+                      ✓ Review pharmacy details<br>
+                      ✓ Check your route and commute time<br>
+                      ✓ Prepare necessary documents<br>
+                      ✓ Arrive 10-15 minutes early
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center">
+                    <a href="https://tatchealth.ca" style="display: inline-block; background-color: #0d9488; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 600;">
+                      View Shift Details
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color: #f9fafb; padding: 16px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">© 2024 Pharmanet. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+          `.trim();
+
+          await base44.integrations.Core.SendEmail({
+            from_name: 'Pharmanet',
+            to: pharmacistEmail,
+            subject: `⏰ Reminder: Your shift at ${shift.pharmacy_name} starts in 1 hour`,
+            body: emailBody
+          });
+
+          remindersSent++;
+        }
+      } catch (error) {
+        console.error(`Error processing shift ${shift.id}:`, error);
+        errors.push({ shiftId: shift.id, error: error.message });
+      }
+    }
+
+    return Response.json({
+      success: true,
+      remindersSent,
+      totalShiftsChecked: shifts.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('Error sending shift reminders:', error);
+    return Response.json({ 
+      error: 'Failed to send reminders',
+      details: error.message 
+    }, { status: 500 });
+  }
+});

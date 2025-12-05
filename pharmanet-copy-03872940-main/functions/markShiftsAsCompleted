@@ -1,0 +1,148 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+
+    // This function should be called via a scheduled cron job every hour
+    // It will mark all filled shifts as completed once their end time has passed
+
+    const now = new Date();
+    
+    // Get all filled shifts
+    const filledShifts = await base44.asServiceRole.entities.Shift.filter({
+      status: 'filled'
+    });
+
+    let updatedCount = 0;
+    const errors = [];
+
+    for (const shift of filledShifts) {
+      try {
+        // Parse shift date and end time
+        const shiftDate = new Date(shift.shift_date);
+        
+        // Parse end time (format: "HH:MM")
+        const [endHours, endMinutes] = shift.end_time.split(':').map(Number);
+        
+        // Create datetime for shift end
+        const shiftEndDateTime = new Date(shiftDate);
+        shiftEndDateTime.setHours(endHours, endMinutes, 0, 0);
+
+        // Check if shift has ended
+        if (now > shiftEndDateTime) {
+          // Update shift status to completed
+          await base44.asServiceRole.entities.Shift.update(shift.id, {
+            status: 'completed'
+          });
+
+          updatedCount++;
+
+          // Optional: Send completion notification to employer and pharmacist
+          try {
+            // Get employer details
+            const employers = await base44.asServiceRole.entities.User.filter({
+              email: shift.created_by
+            });
+
+            if (employers.length > 0) {
+              const employer = employers[0];
+
+              // Send notification to employer
+              await base44.integrations.Core.SendEmail({
+                from_name: 'Pharmanet',
+                to: employer.email,
+                subject: `✓ Shift Completed - ${shift.pharmacy_name}`,
+                body: `
+Hello ${employer.full_name || employer.company_name},
+
+Your shift has been marked as completed:
+
+Shift Details:
+- Pharmacy: ${shift.pharmacy_name}
+- Date: ${shift.shift_date}
+- Time: ${shift.start_time} - ${shift.end_time}
+- Pharmacist: ${shift.assigned_to}
+
+You can now:
+- Review the pharmacist's performance
+- Process payroll/invoicing
+- View shift details in your dashboard
+
+View Shift: https://tatchealth.ca
+
+Thank you for using Pharmanet!
+
+Best regards,
+Pharmanet Team
+                `.trim()
+              });
+            }
+
+            // Send notification to pharmacist
+            if (shift.assigned_to) {
+              const pharmacists = await base44.asServiceRole.entities.User.filter({
+                email: shift.assigned_to
+              });
+
+              if (pharmacists.length > 0) {
+                const pharmacist = pharmacists[0];
+
+                await base44.integrations.Core.SendEmail({
+                  from_name: 'Pharmanet',
+                  to: pharmacist.email,
+                  subject: `✓ Shift Completed - ${shift.pharmacy_name}`,
+                  body: `
+Hello ${pharmacist.full_name},
+
+Congratulations! Your shift has been completed:
+
+Shift Details:
+- Pharmacy: ${shift.pharmacy_name}
+- Date: ${shift.shift_date}
+- Time: ${shift.start_time} - ${shift.end_time}
+- Total Pay: $${shift.total_pay}
+
+What's Next:
+- Your payment will be processed shortly
+- Your completed shifts count has been updated
+- You can view this shift in your schedule
+
+View Shift Details: https://tatchealth.ca
+
+Thank you for your excellent work!
+
+Best regards,
+Pharmanet Team
+                  `.trim()
+                });
+              }
+            }
+          } catch (emailError) {
+            console.error(`Failed to send completion emails for shift ${shift.id}:`, emailError);
+            // Don't fail the whole process if email fails
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing shift ${shift.id}:`, error);
+        errors.push({ shiftId: shift.id, error: error.message });
+      }
+    }
+
+    return Response.json({
+      success: true,
+      message: `Marked ${updatedCount} shifts as completed`,
+      totalChecked: filledShifts.length,
+      updatedCount,
+      errors: errors.length > 0 ? errors : undefined,
+      timestamp: now.toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error in markShiftsAsCompleted:', error);
+    return Response.json({ 
+      error: 'Failed to mark shifts as completed',
+      details: error.message 
+    }, { status: 500 });
+  }
+});

@@ -1,0 +1,215 @@
+import { createClientFromRequest } from "npm:@base44/sdk@0.7.1";
+import { jsPDF } from "npm:jspdf@2.5.1";
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const auth = await base44.auth.me();
+    if (!auth || auth.role !== "employer") {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { shiftId, pharmacistId, includeDeductions = false } = await req.json();
+
+    if (!shiftId || !pharmacistId) {
+      return Response.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // 1) Load shift (and confirm employer owns it)
+    //    VERIFY your table and field names:
+    const shift = await base44.tables.shifts.get(shiftId); // <-- verify "shifts"
+    if (!shift) return Response.json({ error: "Shift not found" }, { status: 404 });
+    if (shift.employerId !== auth.id) { // <-- verify "employerId"
+      return Response.json({ error: "Unauthorized to access this shift" }, { status: 403 });
+    }
+
+    // 2) Ensure pharmacist is approved/booked on this shift
+    const approvedApps = await base44.tables.applications.list({
+      filter: { shiftId, pharmacistId, status: "approved" }, // <-- verify table "applications"
+      limit: 1,
+    });
+    if (!approvedApps?.items?.length) {
+      return Response.json({ error: "No approved application for this pharmacist" }, { status: 404 });
+    }
+
+    // 3) Load pharmacist profile (for name/email/license)
+    const pharmacist = await base44.tables.profiles.get(pharmacistId); // <-- verify "profiles"
+    if (!pharmacist) return Response.json({ error: "Pharmacist profile not found" }, { status: 404 });
+
+    // 4) Compute gross amount (from your stored snapshot)
+    //    Prefer an immutable snapshot on the shift: shift.totalPay
+    const grossAmount = Number(shift.totalPay ?? 0); // <-- verify "totalPay"
+    if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
+      return Response.json({ error: "Invalid gross amount on shift" }, { status: 400 });
+    }
+
+    // 5) Optional deductions
+    let deductions: null | {
+    cpp: number;
+    ei: number;
+    federalTax: number;
+    ontarioTax: number;
+    } = null;
+    let netAmount = grossAmount;
+
+    if (includeDeductions) {
+      // Load tax config (admin-maintained). Adjust table/fields below.
+      const taxList = await base44.tables.tax_config.list({
+        filter: { province: "ON" }, // optionally include taxYear
+        limit: 1,
+      });
+      if (!taxList?.items?.length) {
+        return Response.json({ error: "Tax configuration not found" }, { status: 500 });
+      }
+      const config = taxList.items[0];
+
+      // Guard defaults to avoid undefined
+      const cppRate = Number(config.cppRate ?? 0.0);
+      const cppMax = Number(config.cppMax ?? Infinity);
+      const eiRate = Number(config.eiRate ?? 0.0);
+      const eiMax = Number(config.eiMax ?? Infinity);
+
+      // Simple brackets: if you store full CRA brackets, replace these 2 helpers
+      const computeFederal = (amt: number) => Number((amt * Number(config.federalFlatRate ?? 0.09)).toFixed(2));
+      const computeOntario = (amt: number) => Number((amt * Number(config.ontarioFlatRate ?? 0.05)).toFixed(2));
+
+      const cpp = Math.min(grossAmount * cppRate, cppMax);
+      const ei = Math.min(grossAmount * eiRate, eiMax);
+      const federalTax = computeFederal(grossAmount);
+      const ontarioTax = computeOntario(grossAmount);
+
+      deductions = {
+        cpp: Number(cpp.toFixed(2)),
+        ei: Number(ei.toFixed(2)),
+        federalTax,
+        ontarioTax,
+      };
+
+      const totalDeductions = deductions.cpp + deductions.ei + deductions.federalTax + deductions.ontarioTax;
+      netAmount = Number((grossAmount - totalDeductions).toFixed(2));
+    }
+
+    // 6) Build PDF
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(18);
+    doc.setFont(undefined, "bold");
+    doc.text("PAYROLL INVOICE", 105, 16, { align: "center" });
+
+    // Meta
+    doc.setFontSize(10);
+    doc.setFont(undefined, "normal");
+    const today = new Date();
+    doc.text(`Invoice Date: ${today.toLocaleDateString("en-CA")}`, 20, 28);
+    doc.text(`Invoice #: ${Date.now().toString().slice(-8)}`, 20, 34);
+
+    // From (Employer)
+    doc.setFont(undefined, "bold"); doc.text("FROM:", 20, 46);
+    doc.setFont(undefined, "normal");
+    doc.text(`${auth.company_name || auth.full_name || "Employer"}`, 20, 52);
+    doc.text(`${auth.email}`, 20, 58);
+
+    // To (Pharmacist)
+    doc.setFont(undefined, "bold"); doc.text("TO:", 120, 46);
+    doc.setFont(undefined, "normal");
+    doc.text(`${pharmacist.full_name || `${pharmacist.first_name ?? ""} ${pharmacist.last_name ?? ""}`}`.trim(), 120, 52);
+    if (pharmacist.email) doc.text(`${pharmacist.email}`, 120, 58);
+    if (pharmacist.license_number) doc.text(`License: ${pharmacist.license_number}`, 120, 64);
+
+    // Shift snapshot
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 70, 190, 70);
+
+    doc.setFont(undefined, "bold");
+    doc.text("SHIFT DETAILS", 20, 80);
+    doc.setFont(undefined, "normal");
+    doc.text(`Pharmacy: ${shift.pharmacyName ?? "-"}`, 20, 88);       // <-- verify fields
+    doc.text(`Address: ${shift.pharmacyAddress ?? "-"}`, 20, 94);
+    doc.text(`Date: ${shift.shiftDate ? new Date(shift.shiftDate).toLocaleDateString("en-CA") : "-"}`, 20, 100);
+    doc.text(`Time: ${shift.startTime ?? "-"} - ${shift.endTime ?? "-"}`, 20, 106);
+    if (shift.totalHours) doc.text(`Duration: ${shift.totalHours} hours`, 20, 112);
+    if (shift.hourlyRate) doc.text(`Hourly Rate: $${Number(shift.hourlyRate).toFixed(2)}/hr`, 20, 118);
+
+    // Payment summary
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 126, 190, 126);
+    doc.setFont(undefined, "bold");
+    doc.text("PAYMENT SUMMARY", 20, 136);
+
+    let y = 146;
+    doc.setFont(undefined, "normal");
+    doc.text("Gross Amount:", 20, y);
+    doc.text(`$${grossAmount.toFixed(2)}`, 190, y, { align: "right" });
+    y += 8;
+
+    if (includeDeductions && deductions) {
+      doc.setDrawColor(255, 200, 100);
+      doc.setFillColor(255, 250, 240);
+      doc.rect(15, y - 4, 180, 40, "FD");
+
+      doc.setFont(undefined, "bold");
+      doc.text("Tax Deductions:", 20, y + 2);
+      doc.setFont(undefined, "normal");
+      y += 8;
+
+      doc.text("  CPP Contribution:", 25, y);
+      doc.text(`-$${deductions.cpp.toFixed(2)}`, 190, y, { align: "right" }); y += 6;
+
+      doc.text("  EI Premium:", 25, y);
+      doc.text(`-$${deductions.ei.toFixed(2)}`, 190, y, { align: "right" }); y += 6;
+
+      doc.text("  Federal Income Tax:", 25, y);
+      doc.text(`-$${deductions.federalTax.toFixed(2)}`, 190, y, { align: "right" }); y += 6;
+
+      doc.text("  Ontario Provincial Tax:", 25, y);
+      doc.text(`-$${deductions.ontarioTax.toFixed(2)}`, 190, y, { align: "right" }); y += 10;
+    }
+
+    // Net amount bar
+    doc.setDrawColor(100, 150, 255);
+    doc.setFillColor(240, 245, 255);
+    doc.rect(15, y - 4, 180, 14, "FD");
+    doc.setFont(undefined, "bold");
+    doc.text("NET AMOUNT PAYABLE:", 20, y + 6);
+    doc.text(`$${netAmount.toFixed(2)}`, 190, y + 6, { align: "right" });
+
+    // Footer
+    y += 20;
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text("This invoice is generated electronically and serves as proof of payment.", 105, y, { align: "center" });
+
+    // 7) Upload to storage
+    const pdfBytes = doc.output("arraybuffer");
+    const file = new File([pdfBytes], `invoice-${shiftId}-${Date.now()}.pdf`, { type: "application/pdf" });
+    const uploaded = await base44.storage.upload({ file });
+    const pdfUrl = uploaded.fileUrl || uploaded.url || uploaded.path || ""; // tolerate API variants
+
+    // 8) Persist invoice record
+    const invoice = await base44.tables.payroll_invoices.create({
+      shiftId,                      // <-- verify table + fields
+      employerId: auth.id,
+      pharmacistId,
+      grossAmount,
+      includeDeductions,
+      deductions,
+      netAmount,
+      pdfUrl,
+      sentToPharmacist: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    return Response.json({
+      success: true,
+      invoice,
+      pdfUrl,
+      message: includeDeductions
+        ? `Invoice generated with deductions. Net: $${netAmount.toFixed(2)}`
+        : `Invoice generated without deductions. Total: $${netAmount.toFixed(2)}`
+    });
+  } catch (err) {
+    console.error("generatePayrollInvoice error:", err);
+    return Response.json({ error: err?.message ?? "Failed to generate invoice" }, { status: 500 });
+  }
+});

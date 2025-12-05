@@ -1,0 +1,97 @@
+{
+  "name": "PayrollInvoice",
+  "type": "object",
+  "properties": {
+    "shift_id": {
+      "type": "string",
+      "description": "ID of the shift"
+    },
+    "employer_id": {
+      "type": "string",
+      "description": "ID of the employer"
+    },
+    "pharmacist_id": {
+      "type": "string",
+      "description": "ID of the pharmacist"
+    },
+    "gross_amount": {
+      "type": "number",
+      "description": "Gross payment amount in CAD"
+    },
+    "include_deductions": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether deductions were included"
+    },
+    "deductions": {
+      "type": "object",
+      "properties": {
+        "cpp": {
+          "type": "number"
+        },
+        "ei": {
+          "type": "number"
+        },
+        "federal_tax": {
+          "type": "number"
+        },
+        "ontario_tax": {
+          "type": "number"
+        }
+      },
+      "description": "Tax deduction breakdown"
+    },
+    "net_amount": {
+      "type": "number",
+      "description": "Net amount after deductions"
+    },
+    "pdf_url": {
+      "type": "string",
+      "description": "URL to the PDF invoice"
+    },
+    "sent_to_pharmacist": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether invoice was sent to pharmacist"
+    }
+  },
+  "required": [
+    "shift_id",
+    "employer_id",
+    "pharmacist_id",
+    "gross_amount",
+    "net_amount"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "employer_id": "{{user.id}}"
+        },
+        {
+          "pharmacist_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
